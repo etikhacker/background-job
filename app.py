@@ -122,4 +122,26 @@ async def say_hello(ctx: inngest.Context) -> str:
     return "Hello from the background!"
 
 
-serve(app, inngest_client, [say_hello, make_report])
+# --------------------------------------------------------------------------- #
+# Stage 4 - cron heartbeat: every minute, log how many of each status we hold
+# --------------------------------------------------------------------------- #
+@inngest_client.create_function(
+    fn_id="heartbeat",
+    name="Heartbeat (cron)",
+    trigger=inngest.TriggerCron(cron="* * * * *"),
+)
+async def heartbeat(ctx: inngest.Context) -> dict[str, int]:
+    def _summarise() -> dict[str, int]:
+        summary = {"pending": 0, "done": 0, "failed": 0}
+        for r in REPORTS.values():
+            s = r.get("status", "pending")
+            if s in summary:
+                summary[s] += 1
+        line = f"[heartbeat] {_utc_now_iso()} summary={summary}"
+        print(line, flush=True)
+        return summary
+
+    return await ctx.step.run("summarise", _summarise)
+
+
+serve(app, inngest_client, [say_hello, make_report, heartbeat])
