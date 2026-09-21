@@ -72,6 +72,11 @@ async def get_report(report_id: str):
 
 
 def _build_report_payload(report_id: str, topic: str) -> dict[str, Any]:
+    if topic == "fail":
+        # Stage 3: trigger retries - Inngest sees this exception and retries
+        # because retries=2 is set on the function.
+        raise RuntimeError("The report oven is broken!")
+
     return {
         "id": report_id,
         "topic": topic,
